@@ -1,0 +1,251 @@
+{
+  "name": "Risk Eliminator - Compliance Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "0 * * * *",
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        }
+      },
+      "id": "hourly-check",
+      "name": "Hourly Compliance Check",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM compliance_checks WHERE status = 'pending' OR last_checked < NOW() - INTERVAL '24 hours'",
+        "options": {}
+      },
+      "id": "get-checks",
+      "name": "Get Pending Checks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "id": "batch-checks",
+      "name": "Batch Process",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.check_url }}",
+        "method": "GET",
+        "options": {
+          "timeout": 30000,
+          "followRedirects": true
+        }
+      },
+      "id": "perform-check",
+      "name": "Perform Compliance Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Analyze compliance results\nconst response = $input.first().json;\nconst violations = [];\n\n// Check for required elements\nconst requiredElements = [\n  { name: 'Privacy Policy', selector: 'privacy-policy', required: true },\n  { name: 'Terms of Service', selector: 'terms-of-service', required: true },\n  { name: 'Cookie Notice', selector: 'cookie-notice', required: true },\n  { name: 'GDPR Compliance', selector: 'gdpr-notice', required: false }\n];\n\nfor (const element of requiredElements) {\n  const found = response.body.includes(element.selector);\n  if (element.required && !found) {\n    violations.push({\n      type: 'missing_required',\n      element: element.name,\n      severity: 'high'\n    });\n  }\n}\n\n// Check for security headers\nconst headers = response.headers;\nconst securityHeaders = [\n  'X-Content-Type-Options',\n  'X-Frame-Options',\n  'Content-Security-Policy'\n];\n\nfor (const header of securityHeaders) {\n  if (!headers[header.toLowerCase()]) {\n    violations.push({\n      type: 'missing_security_header',\n      header: header,\n      severity: 'medium'\n    });\n  }\n}\n\nreturn [{\n  json: {\n    url: $('Get Pending Checks').json.check_url,\n    checkId: $('Get Pending Checks').json.id,\n    violations: violations,\n    compliant: violations.length === 0,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "analyze-compliance",
+      "name": "Analyze Compliance",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.compliant }}",
+              "operation": "false"
+            }
+          ]
+        }
+      },
+      "id": "violation-check",
+      "name": "Has Violations?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "channel": "#compliance-alerts",
+        "text": "🚨 *COMPLIANCE VIOLATION DETECTED*\n\nURL: {{ $json.url }}\nViolations Found: {{ $json.violations.length }}\n\nDetails:\n{{ $json.violations.map(v => `• ${v.type}: ${v.element || v.header} (${v.severity})`).join('\\n') }}\n\nImmediate action required!",
+        "options": {
+          "attachments": [
+            {
+              "color": "danger",
+              "fields": [
+                {
+                  "title": "Check ID",
+                  "value": "={{ $json.checkId }}",
+                  "short": true
+                },
+                {
+                  "title": "Timestamp",
+                  "value": "={{ $json.timestamp }}",
+                  "short": true
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "id": "alert-violations",
+      "name": "Alert Violations",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "compliance_checks",
+        "updateKey": "id",
+        "columns": "last_checked,status,violations",
+        "additionalFields": {}
+      },
+      "id": "update-database",
+      "name": "Update Check Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1450, 600]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "issueType": "Bug",
+        "project": "COMPLIANCE",
+        "summary": "Compliance Violation: {{ $json.url }}",
+        "description": "Automated compliance check detected violations:\n\n{{ $json.violations.map(v => `* ${v.type}: ${v.element || v.header} (${v.severity})`).join('\\n') }}\n\nURL: {{ $json.url }}\nCheck ID: {{ $json.checkId }}\nTimestamp: {{ $json.timestamp }}",
+        "additionalFields": {
+          "priority": "High",
+          "labels": ["compliance", "automated", "violation"]
+        }
+      },
+      "id": "create-ticket",
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [1650, 400]
+    }
+  ],
+  "connections": {
+    "Hourly Compliance Check": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Checks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Checks": {
+      "main": [
+        [
+          {
+            "node": "Batch Process",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Process": {
+      "main": [
+        [
+          {
+            "node": "Perform Compliance Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perform Compliance Check": {
+      "main": [
+        [
+          {
+            "node": "Analyze Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Compliance": {
+      "main": [
+        [
+          {
+            "node": "Has Violations?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Violations?": {
+      "main": [
+        [
+          {
+            "node": "Alert Violations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Violations": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "executionTimeout": 1800
+  },
+  "tags": [
+    {
+      "name": "Risk Eliminator"
+    },
+    {
+      "name": "Compliance"
+    },
+    {
+      "name": "Security"
+    }
+  ]
+}

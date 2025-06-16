@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automation Empire - Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .glow {
+            box-shadow: 0 0 20px rgba(14, 165, 233, 0.5);
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-white">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-4">
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                            Empire Analytics
+                        </h1>
+                        <span class="px-3 py-1 bg-green-900/30 text-green-400 text-sm rounded-full border border-green-800">
+                            Live
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button class="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
+                            Export Report
+                        </button>
+                        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors">
+                            Configure
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <!-- Time Saved -->
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-2 bg-blue-900/30 rounded-lg">
+                            <i data-lucide="clock" class="w-6 h-6 text-blue-400"></i>
+                        </div>
+                        <span class="text-sm text-green-400">+23%</span>
+                    </div>
+                    <h3 class="text-gray-400 text-sm mb-1">Time Saved</h3>
+                    <p class="text-3xl font-bold">1,247 hrs</p>
+                    <p class="text-sm text-gray-500 mt-1">This month</p>
+                </div>
+
+                <!-- Revenue Generated -->
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-2 bg-green-900/30 rounded-lg">
+                            <i data-lucide="dollar-sign" class="w-6 h-6 text-green-400"></i>
+                        </div>
+                        <span class="text-sm text-green-400">+47%</span>
+                    </div>
+                    <h3 class="text-gray-400 text-sm mb-1">Revenue Impact</h3>
+                    <p class="text-3xl font-bold">$127.4K</p>
+                    <p class="text-sm text-gray-500 mt-1">Generated</p>
+                </div>
+
+                <!-- Active Workflows -->
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-2 bg-purple-900/30 rounded-lg">
+                            <i data-lucide="zap" class="w-6 h-6 text-purple-400"></i>
+                        </div>
+                        <span class="text-sm text-green-400">+12</span>
+                    </div>
+                    <h3 class="text-gray-400 text-sm mb-1">Active Workflows</h3>
+                    <p class="text-3xl font-bold">68</p>
+                    <p class="text-sm text-gray-500 mt-1">Running 24/7</p>
+                </div>
+
+                <!-- Success Rate -->
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-2 bg-orange-900/30 rounded-lg">
+                            <i data-lucide="shield" class="w-6 h-6 text-orange-400"></i>
+                        </div>
+                        <span class="text-sm text-green-400">+2.1%</span>
+                    </div>
+                    <h3 class="text-gray-400 text-sm mb-1">Success Rate</h3>
+                    <p class="text-3xl font-bold">99.7%</p>
+                    <p class="text-sm text-gray-500 mt-1">Reliability</p>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Workflow Performance -->
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold mb-4">Workflow Performance</h3>
+                    <canvas id="performanceChart" width="400" height="200"></canvas>
+                </div>
+
+                <!-- Revenue by Category -->
+                <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold mb-4">Revenue by Category</h3>
+                    <canvas id="revenueChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+
+            <!-- Workflow Table -->
+            <div class="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-semibold">Top Performing Workflows</h3>
+                    <button class="text-blue-400 hover:text-blue-300 text-sm">View All</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-800">
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Workflow</th>
+                                <th class="text-left py-3 px-4 text-gray-400 font-medium">Category</th>
+                                <th class="text-right py-3 px-4 text-gray-400 font-medium">Executions</th>
+                                <th class="text-right py-3 px-4 text-gray-400 font-medium">Time Saved</th>
+                                <th class="text-right py-3 px-4 text-gray-400 font-medium">ROI</th>
+                                <th class="text-center py-3 px-4 text-gray-400 font-medium">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+                                <td class="py-3 px-4 font-medium">Lead Qualification Money Printer</td>
+                                <td class="py-3 px-4 text-gray-400">Revenue Generator</td>
+                                <td class="py-3 px-4 text-right">3,847</td>
+                                <td class="py-3 px-4 text-right">642 hrs</td>
+                                <td class="py-3 px-4 text-right text-green-400">+387%</td>
+                                <td class="py-3 px-4 text-center">
+                                    <span class="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Active</span>
+                                </td>
+                            </tr>
+                            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+                                <td class="py-3 px-4 font-medium">Content Distribution Engine</td>
+                                <td class="py-3 px-4 text-gray-400">Scale Accelerator</td>
+                                <td class="py-3 px-4 text-right">1,293</td>
+                                <td class="py-3 px-4 text-right">215 hrs</td>
+                                <td class="py-3 px-4 text-right text-green-400">+523%</td>
+                                <td class="py-3 px-4 text-center">
+                                    <span class="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Active</span>
+                                </td>
+                            </tr>
+                            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+                                <td class="py-3 px-4 font-medium">Meeting Prep Automation</td>
+                                <td class="py-3 px-4 text-gray-400">Time Liberator</td>
+                                <td class="py-3 px-4 text-right">892</td>
+                                <td class="py-3 px-4 text-right">178 hrs</td>
+                                <td class="py-3 px-4 text-right text-green-400">+245%</td>
+                                <td class="py-3 px-4 text-center">
+                                    <span class="px-2 py-1 bg-green-900/30 text-green-400 text-xs rounded-full">Active</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Performance Chart
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(performanceCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Executions',
+                    data: [1200, 1900, 3000, 5000, 7200, 9347],
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4
+                }, {
+                    label: 'Success Rate',
+                    data: [95, 96, 97, 98, 99, 99.7],
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'rgb(156, 163, 175)'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(55, 65, 81, 0.5)'
+                        },
+                        ticks: {
+                            color: 'rgb(156, 163, 175)'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(55, 65, 81, 0.5)'
+                        },
+                        ticks: {
+                            color: 'rgb(156, 163, 175)'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false
+                        },
+                        ticks: {
+                            color: 'rgb(156, 163, 175)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Revenue Chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        new Chart(revenueCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Revenue Generators', 'Time Liberators', 'Scale Accelerators', 'Risk Eliminators'],
+                datasets: [{
+                    data: [45000, 32000, 38000, 12400],
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(168, 85, 247, 0.8)',
+                        'rgba(251, 146, 60, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgb(34, 197, 94)',
+                        'rgb(59, 130, 246)',
+                        'rgb(168, 85, 247)',
+                        'rgb(251, 146, 60)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: 'rgb(156, 163, 175)',
+                            padding: 20
+                        }
+                    }
+                }
+            }
+        });
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            console.log('Refreshing dashboard data...');
+            // In production, this would fetch real data
+        }, 30000);
+    </script>
+</body>
+</html>

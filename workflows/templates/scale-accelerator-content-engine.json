@@ -1,0 +1,214 @@
+{
+  "name": "Scale Accelerator - Content Distribution Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "content-input",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "content-webhook",
+      "name": "Content Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 500],
+      "webhookId": "content-distribution-webhook"
+    },
+    {
+      "parameters": {
+        "prompt": "Transform this content into multiple formats:\n\nOriginal: {{ $json.content }}\n\nCreate:\n1. Twitter thread (5-7 tweets)\n2. LinkedIn post (professional tone)\n3. Instagram caption (with hashtags)\n4. Email newsletter snippet\n5. YouTube description\n6. TikTok script",
+        "model": "gpt-4",
+        "temperature": 0.7
+      },
+      "id": "ai-transform",
+      "name": "AI Content Transformer",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse AI response and split into platforms\nconst response = $input.first().json.choices[0].message.content;\nconst platforms = {};\n\n// Extract each platform's content\nconst sections = response.split(/\\d\\.\\s+/);\nplatforms.twitter = sections[1] || '';\nplatforms.linkedin = sections[2] || '';\nplatforms.instagram = sections[3] || '';\nplatforms.email = sections[4] || '';\nplatforms.youtube = sections[5] || '';\nplatforms.tiktok = sections[6] || '';\n\nreturn Object.entries(platforms).map(([platform, content]) => ({\n  json: { platform, content: content.trim() }\n}));"
+      },
+      "id": "split-content",
+      "name": "Split by Platform",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platform }}",
+              "operation": "equals",
+              "value2": "twitter"
+            }
+          ]
+        }
+      },
+      "id": "twitter-check",
+      "name": "Is Twitter?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.content }}",
+        "additionalFields": {}
+      },
+      "id": "twitter-post",
+      "name": "Post to Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.platform }}",
+              "operation": "equals",
+              "value2": "linkedin"
+            }
+          ]
+        }
+      },
+      "id": "linkedin-check",
+      "name": "Is LinkedIn?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.content }}",
+        "shareMediaCategory": "NONE"
+      },
+      "id": "linkedin-post",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "resource": "analytics",
+        "operation": "track",
+        "event": "content_distributed",
+        "properties": {
+          "platform": "={{ $json.platform }}",
+          "contentId": "={{ $('Content Input').json.id }}",
+          "timestamp": "={{ $now.toISO() }}"
+        }
+      },
+      "id": "track-analytics",
+      "name": "Track Distribution",
+      "type": "n8n-nodes-base.mixpanel",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    }
+  ],
+  "connections": {
+    "Content Input": {
+      "main": [
+        [
+          {
+            "node": "AI Content Transformer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Content Transformer": {
+      "main": [
+        [
+          {
+            "node": "Split by Platform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split by Platform": {
+      "main": [
+        [
+          {
+            "node": "Is Twitter?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is LinkedIn?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Twitter?": {
+      "main": [
+        [
+          {
+            "node": "Post to Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is LinkedIn?": {
+      "main": [
+        [
+          {
+            "node": "Post to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Twitter": {
+      "main": [
+        [
+          {
+            "node": "Track Distribution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Track Distribution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "executionTimeout": 900
+  },
+  "tags": [
+    {
+      "name": "Scale Accelerator"
+    },
+    {
+      "name": "Content Distribution"
+    }
+  ]
+}
