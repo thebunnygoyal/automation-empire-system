@@ -1,0 +1,150 @@
+{
+  "name": "Time Liberator - Meeting Prep Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "*/15 * * * *",
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 15,
+              "unit": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Check Calendar",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "getAll",
+        "calendar": "primary",
+        "timeMin": "={{ $now.plus(1, 'hour').toISO() }}",
+        "timeMax": "={{ $now.plus(25, 'hours').toISO() }}",
+        "options": {
+          "singleEvents": true
+        }
+      },
+      "id": "get-meetings",
+      "name": "Get Upcoming Meetings",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/v2/people",
+        "method": "GET",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.attendeeEmail }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "linkedin-research",
+      "name": "Research Attendees",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "prompt": "Create a meeting brief for {{ $json.meetingTitle }} with {{ $json.attendeeName }}.\n\nTheir background: {{ $json.linkedinData }}\n\nKey talking points to prepare.",
+        "model": "gpt-4",
+        "temperature": 0.7
+      },
+      "id": "ai-brief",
+      "name": "Generate Brief",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "subject": "Meeting Brief: {{ $json.meetingTitle }}",
+        "toEmail": "={{ $json.userEmail }}",
+        "text": "={{ $json.brief }}",
+        "options": {
+          "ccEmail": "",
+          "bccEmail": ""
+        }
+      },
+      "id": "send-brief",
+      "name": "Send Brief",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Check Calendar": {
+      "main": [
+        [
+          {
+            "node": "Get Upcoming Meetings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Upcoming Meetings": {
+      "main": [
+        [
+          {
+            "node": "Research Attendees",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research Attendees": {
+      "main": [
+        [
+          {
+            "node": "Generate Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Brief": {
+      "main": [
+        [
+          {
+            "node": "Send Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "executionTimeout": 600
+  },
+  "tags": [
+    {
+      "name": "Time Liberator"
+    },
+    {
+      "name": "Meeting Automation"
+    }
+  ]
+}
