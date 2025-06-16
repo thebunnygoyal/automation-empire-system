@@ -1,0 +1,114 @@
+name: Deploy Automation Empire
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+jobs:
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    name: Deploy Azure Infrastructure
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy Infrastructure
+      run: |
+        cd infrastructure
+        chmod +x deploy.sh
+        ./deploy.sh
+
+  deploy-website:
+    runs-on: ubuntu-latest
+    name: Deploy Website
+    needs: deploy-infrastructure
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        cd website
+        npm ci
+        
+    - name: Build website
+      run: |
+        cd website
+        npm run build
+        
+    - name: Deploy to Azure
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: automation-empire-web
+        package: website
+
+  deploy-workflows:
+    runs-on: ubuntu-latest
+    name: Deploy n8n Workflows
+    needs: deploy-infrastructure
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Deploy Workflows
+      env:
+        N8N_API_URL: ${{ secrets.N8N_API_URL }}
+        N8N_API_KEY: ${{ secrets.N8N_API_KEY }}
+      run: |
+        cd workflows
+        npm install
+        node deploy-workflows.js --deploy-all
+
+  deploy-distribution:
+    runs-on: ubuntu-latest
+    name: Deploy Distribution Engine
+    needs: [deploy-infrastructure, deploy-website]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Deploy Distribution Engine
+      run: |
+        cd distribution
+        npm install
+        node deploy.js
+
+  notify-success:
+    runs-on: ubuntu-latest
+    name: Notify Success
+    needs: [deploy-website, deploy-workflows, deploy-distribution]
+    if: success()
+    
+    steps:
+    - name: Send Success Notification
+      run: |
+        echo "🎉 Automation Empire deployed successfully!"
+        echo "Website: https://automation-empire-web.azurewebsites.net"
+        echo "n8n: https://n8n-app.livelypebble-c844ad2d.eastus2.azurecontainerapps.io"
