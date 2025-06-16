@@ -1,0 +1,31 @@
+{
+  "name": "automation-empire-system",
+  "version": "1.0.0",
+  "description": "The Ultimate Automation Empire - Build Unstoppable Automated Businesses",
+  "scripts": {
+    "dev": "npm run dev:website",
+    "dev:website": "cd website && npm run dev",
+    "build": "npm run build:website",
+    "build:website": "cd website && npm run build",
+    "deploy": "npm run deploy:azure",
+    "deploy:azure": "cd infrastructure && bash deploy.sh",
+    "setup": "npm run setup:all",
+    "setup:all": "npm install && cd website && npm install",
+    "workflow:deploy": "cd workflows && node deploy-workflows.js",
+    "test": "npm run test:all",
+    "test:all": "cd website && npm test"
+  },
+  "keywords": [
+    "automation",
+    "n8n",
+    "azure",
+    "workflow",
+    "business"
+  ],
+  "author": "The Automation Imperator",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
